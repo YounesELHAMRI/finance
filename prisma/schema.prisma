@@ -1,0 +1,62 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Category {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  description  String?
+  color        String?       // Hex color for UI
+  icon         String?       // Icon name for UI
+  parentName   String?       // Parent category name (e.g., "Vie quotidienne")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  transactions Transaction[]
+}
+
+model Merchant {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  suggestedName String?      // Suggested label from bank
+  type         String?       // "store", "restaurant", "service", etc.
+  description  String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  transactions Transaction[]
+}
+
+model Transaction {
+  id            String    @id @default(cuid())
+  dateOp        DateTime  // Operation date
+  dateVal       DateTime  // Value date
+  label         String    // Original transaction label
+  amount        Float     // Positive for income, negative for expense
+  type          String    // "income", "expense", "transfer"
+  description   String?   // User notes
+  comment       String?   // Bank comment
+  accountNum    String?   // Account number
+  accountLabel  String?   // Account label
+  balance       Float?    // Account balance after transaction
+  paymentMethod String?   // "card", "transfer", "cash", "check", "direct_debit"
+  receiptUrl    String?   // Path to uploaded receipt
+  isRecurring   Boolean   @default(false)
+  categoryId    String?
+  category      Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  merchantId    String?
+  merchant      Merchant? @relation(fields: [merchantId], references: [id], onDelete: SetNull)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([dateOp])
+  @@index([type])
+  @@index([categoryId])
+  @@index([merchantId])
+}
