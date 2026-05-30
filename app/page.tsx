@@ -222,27 +222,27 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Recent Donations */}
+        {/* Recent Transactions */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Dons récents
+            Transactions récentes
           </h2>
           <div className="space-y-4">
-            {stats.recentDonations.map((donation) => (
+            {stats.recentDonations.map((transaction) => (
               <div
-                key={donation.id}
+                key={transaction.id}
                 className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
               >
                 <div className="flex-1">
                   <p className="font-medium text-gray-900">
-                    {donation.beneficiary.name}
+                    {transaction.merchant?.name || transaction.label}
                   </p>
                   <p className="text-sm text-gray-500">
-                    {donation.category.name} • {formatShortDate(donation.date)}
+                    {transaction.category?.name || 'Non catégorisé'} • {formatShortDate(transaction.dateOp)}
                   </p>
                 </div>
-                <p className="font-semibold text-gray-900">
-                  {formatCurrency(donation.amount)}
+                <p className={`font-semibold ${transaction.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {transaction.amount >= 0 ? '+' : ''}{formatCurrency(transaction.amount)}
                 </p>
               </div>
             ))}
