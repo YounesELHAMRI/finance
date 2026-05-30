@@ -6,10 +6,10 @@ import { TrendingUp, DollarSign, Gift, Users } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
 
 interface Stats {
-  total: { amount: number; count: number }
-  year: { year: number; amount: number; count: number }
+  total: { amount: number; income: number; count: number }
+  year: { year: number; amount: number; income: number; count: number }
   byCategory: Array<{ id: string; name: string; color: string; total: number; count: number }>
-  byMonth: Array<{ month: number; total: number; count: number }>
+  byMonth: Array<{ month: number; total: number; income: number; count: number }>
   topBeneficiaries: Array<{ id: string; name: string; type: string; total: number; count: number }>
   recentDonations: Array<any>
 }
@@ -74,7 +74,7 @@ export default function Dashboard() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Tableau de bord</h1>
         <p className="mt-2 text-gray-600">
-          Vue d'ensemble de vos donations pour l'année {selectedYear}
+          Vue d'ensemble de vos finances pour l'année {selectedYear}
         </p>
       </div>
 
@@ -83,13 +83,13 @@ export default function Dashboard() {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Total des dons</p>
-              <p className="text-2xl font-bold text-gray-900 mt-2">
+              <p className="text-sm font-medium text-gray-600">Total dépenses</p>
+              <p className="text-2xl font-bold text-red-600 mt-2">
                 {formatCurrency(stats.total.amount)}
               </p>
             </div>
-            <div className="bg-blue-100 rounded-full p-3">
-              <DollarSign className="h-6 w-6 text-blue-600" />
+            <div className="bg-red-100 rounded-full p-3">
+              <DollarSign className="h-6 w-6 text-red-600" />
             </div>
           </div>
         </div>
@@ -97,9 +97,9 @@ export default function Dashboard() {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Dons en {selectedYear}</p>
-              <p className="text-2xl font-bold text-gray-900 mt-2">
-                {formatCurrency(stats.year.amount)}
+              <p className="text-sm font-medium text-gray-600">Revenus {selectedYear}</p>
+              <p className="text-2xl font-bold text-green-600 mt-2">
+                +{formatCurrency(stats.total.income || 0)}
               </p>
             </div>
             <div className="bg-green-100 rounded-full p-3">
@@ -111,7 +111,7 @@ export default function Dashboard() {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Nombre de dons</p>
+              <p className="text-sm font-medium text-gray-600">Transactions</p>
               <p className="text-2xl font-bold text-gray-900 mt-2">
                 {stats.year.count}
               </p>
@@ -125,15 +125,90 @@ export default function Dashboard() {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Bénéficiaires</p>
-              <p className="text-2xl font-bold text-gray-900 mt-2">
-                {stats.topBeneficiaries.length}
+              <p className="text-sm font-medium text-gray-600">Solde</p>
+              <p className={`text-2xl font-bold mt-2 ${(stats.total.income || 0) - stats.total.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {formatCurrency((stats.total.income || 0) - stats.total.amount)}
               </p>
             </div>
-            <div className="bg-orange-100 rounded-full p-3">
-              <Users className="h-6 w-6 text-orange-600" />
+            <div className="bg-blue-100 rounded-full p-3">
+              <Users className="h-6 w-6 text-blue-600" />
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Expenses by Category Table */}
+      <div className="bg-white rounded-lg shadow p-6 mb-8">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          Dépenses par catégorie - {selectedYear}
+        </h2>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Catégorie
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Transactions
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Montant total
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  % du total
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {stats.byCategory
+                .filter((cat) => cat.total > 0)
+                .sort((a, b) => b.total - a.total)
+                .map((category) => {
+                  const percentage = (category.total / stats.total.amount) * 100
+                  return (
+                    <tr key={category.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div
+                            className="w-3 h-3 rounded-full mr-3"
+                            style={{ backgroundColor: category.color || '#3B82F6' }}
+                          ></div>
+                          <span className="text-sm font-medium text-gray-900">
+                            {category.name}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-500">
+                        {category.count}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-red-600">
+                        {formatCurrency(category.total)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-500">
+                        {percentage.toFixed(1)}%
+                      </td>
+                    </tr>
+                  )
+                })}
+            </tbody>
+            <tfoot className="bg-gray-50">
+              <tr>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                  TOTAL
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-gray-900">
+                  {stats.byCategory.reduce((sum, cat) => sum + cat.count, 0)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-red-600">
+                  {formatCurrency(stats.total.amount)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-gray-900">
+                  100%
+                </td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
       </div>
 
@@ -142,7 +217,7 @@ export default function Dashboard() {
         {/* Monthly Chart */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Dons mensuels {selectedYear}
+            Dépenses mensuelles {selectedYear}
           </h2>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={monthlyChartData}>
@@ -153,7 +228,7 @@ export default function Dashboard() {
                 formatter={(value: number) => formatCurrency(value)}
                 labelStyle={{ color: '#000' }}
               />
-              <Bar dataKey="montant" fill="#3B82F6" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="montant" fill="#EF4444" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -161,7 +236,7 @@ export default function Dashboard() {
         {/* Category Chart */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Dons par catégorie
+            Répartition par catégorie
           </h2>
           {categoryChartData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
@@ -192,31 +267,31 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Top Beneficiaries and Recent Donations */}
+      {/* Top Merchants and Recent Transactions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Beneficiaries */}
+        {/* Top Merchants */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Top bénéficiaires
+            Top 5 commerçants
           </h2>
           <div className="space-y-4">
-            {stats.topBeneficiaries.map((beneficiary) => (
+            {stats.topBeneficiaries.map((merchant) => (
               <div
-                key={beneficiary.id}
+                key={merchant.id}
                 className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
               >
                 <div>
-                  <p className="font-medium text-gray-900">{beneficiary.name}</p>
-                  <p className="text-sm text-gray-500">{beneficiary.count} dons</p>
+                  <p className="font-medium text-gray-900">{merchant.name}</p>
+                  <p className="text-sm text-gray-500">{merchant.count} transactions</p>
                 </div>
-                <p className="font-semibold text-gray-900">
-                  {formatCurrency(beneficiary.total)}
+                <p className="font-semibold text-red-600">
+                  {formatCurrency(merchant.total)}
                 </p>
               </div>
             ))}
             {stats.topBeneficiaries.length === 0 && (
               <p className="text-center text-gray-500 py-4">
-                Aucun bénéficiaire pour le moment
+                Aucun commerçant pour le moment
               </p>
             )}
           </div>
