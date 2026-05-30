@@ -18,18 +18,43 @@ export default function ImportBankStatementPage() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<ImportResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [dragActive, setDragActive] = useState(false)
+
+  const validateAndSetFile = (selectedFile: File) => {
+    if (selectedFile.name.endsWith('.csv')) {
+      setFile(selectedFile)
+      setError(null)
+      setResult(null)
+    } else {
+      setError('Format de fichier non supporté. Utilisez un fichier CSV de BoursoBank')
+      setFile(null)
+    }
+  }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
     if (selectedFile) {
-      if (selectedFile.name.endsWith('.csv')) {
-        setFile(selectedFile)
-        setError(null)
-        setResult(null)
-      } else {
-        setError('Format de fichier non supporté. Utilisez un fichier CSV de BoursoBank')
-        setFile(null)
-      }
+      validateAndSetFile(selectedFile)
+    }
+  }
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true)
+    } else if (e.type === 'dragleave') {
+      setDragActive(false)
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      validateAndSetFile(e.dataTransfer.files[0])
     }
   }
 
@@ -118,9 +143,19 @@ export default function ImportBankStatementPage() {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Fichier de relevé bancaire BoursoBank (CSV) *
             </label>
-            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-red-400 transition-colors">
+            <div
+              className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-lg transition-colors ${
+                dragActive
+                  ? 'border-red-500 bg-red-50'
+                  : 'border-gray-300 hover:border-red-400'
+              }`}
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+            >
               <div className="space-y-1 text-center">
-                <FileSpreadsheet className="mx-auto h-12 w-12 text-gray-400" />
+                <FileSpreadsheet className={`mx-auto h-12 w-12 ${dragActive ? 'text-red-500' : 'text-gray-400'}`} />
                 <div className="flex text-sm text-gray-600">
                   <label
                     htmlFor="file-input"
