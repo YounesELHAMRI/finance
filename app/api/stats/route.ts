@@ -1,30 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-// GET /api/stats - Get donation statistics
+// GET /api/stats - Get transaction statistics
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
     const year = searchParams.get('year')
     const currentYear = year ? parseInt(year) : new Date().getFullYear()
 
-    // Get total donations
-    const totalDonations = await prisma.donation.aggregate({
-      _sum: {
-        amount: true,
-      },
-      _count: true,
-    })
-
-    // Get donations for current year
-    const yearStart = new Date(currentYear, 0, 1)
-    const yearEnd = new Date(currentYear, 11, 31, 23, 59, 59)
-
-    const yearDonations = await prisma.donation.aggregate({
+    // Get total transactions (expenses only - negative amounts)
+    const totalExpenses = await prisma.transaction.aggregate({
       where: {
-        date: {
-          gte: yearStart,
-          lte: yearEnd,
+        amount: {
+          lt: 0, // Only expenses
         },
       },
       _sum: {
@@ -33,12 +21,61 @@ export async function GET(request: NextRequest) {
       _count: true,
     })
 
-    // Get donations by category
-    const donationsByCategory = await prisma.category.findMany({
+    // Get total income (positive amounts)
+    const totalIncome = await prisma.transaction.aggregate({
+      where: {
+        amount: {
+          gt: 0, // Only income
+        },
+      },
+      _sum: {
+        amount: true,
+      },
+      _count: true,
+    })
+
+    // Get transactions for current year
+    const yearStart = new Date(currentYear, 0, 1)
+    const yearEnd = new Date(currentYear, 11, 31, 23, 59, 59)
+
+    const yearExpenses = await prisma.transaction.aggregate({
+      where: {
+        dateOp: {
+          gte: yearStart,
+          lte: yearEnd,
+        },
+        amount: {
+          lt: 0,
+        },
+      },
+      _sum: {
+        amount: true,
+      },
+      _count: true,
+    })
+
+    const yearIncome = await prisma.transaction.aggregate({
+      where: {
+        dateOp: {
+          gte: yearStart,
+          lte: yearEnd,
+        },
+        amount: {
+          gt: 0,
+        },
+      },
+      _sum: {
+        amount: true,
+      },
+      _count: true,
+    })
+
+    // Get transactions by category
+    const transactionsByCategory = await prisma.category.findMany({
       include: {
-        donations: {
+        transactions: {
           where: {
-            date: {
+            dateOp: {
               gte: yearStart,
               lte: yearEnd,
             },
@@ -47,44 +84,48 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    const categoryStats = donationsByCategory.map((category: any) => ({
+    const categoryStats = transactionsByCategory.map((category: any) => ({
       id: category.id,
       name: category.name,
       color: category.color,
-      total: category.donations.reduce((sum: number, d: any) => sum + d.amount, 0),
-      count: category.donations.length,
+      total: Math.abs(category.transactions.reduce((sum: number, t: any) => sum + t.amount, 0)),
+      count: category.transactions.length,
     }))
 
-    // Get donations by month for current year
-    const monthlyDonations = await prisma.donation.findMany({
+    // Get transactions by month for current year
+    const monthlyTransactions = await prisma.transaction.findMany({
       where: {
-        date: {
+        dateOp: {
           gte: yearStart,
           lte: yearEnd,
         },
       },
       orderBy: {
-        date: 'asc',
+        dateOp: 'asc',
       },
     })
 
     const monthlyStats = Array.from({ length: 12 }, (_, i) => {
-      const monthDonations = monthlyDonations.filter(
-        (d: any) => new Date(d.date).getMonth() === i
+      const monthTransactions = monthlyTransactions.filter(
+        (t: any) => new Date(t.dateOp).getMonth() === i
       )
+      const expenses = monthTransactions.filter((t: any) => t.amount < 0)
+      const income = monthTransactions.filter((t: any) => t.amount > 0)
+      
       return {
         month: i + 1,
-        total: monthDonations.reduce((sum: number, d: any) => sum + d.amount, 0),
-        count: monthDonations.length,
+        total: Math.abs(expenses.reduce((sum: number, t: any) => sum + t.amount, 0)),
+        income: income.reduce((sum: number, t: any) => sum + t.amount, 0),
+        count: monthTransactions.length,
       }
     })
 
-    // Get top beneficiaries
-    const beneficiaries = await prisma.beneficiary.findMany({
+    // Get top merchants
+    const merchants = await prisma.merchant.findMany({
       include: {
-        donations: {
+        transactions: {
           where: {
-            date: {
+            dateOp: {
               gte: yearStart,
               lte: yearEnd,
             },
@@ -93,39 +134,41 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    const topBeneficiaries = beneficiaries
-      .map((beneficiary: any) => ({
-        id: beneficiary.id,
-        name: beneficiary.name,
-        type: beneficiary.type,
-        total: beneficiary.donations.reduce((sum: number, d: any) => sum + d.amount, 0),
-        count: beneficiary.donations.length,
+    const topBeneficiaries = merchants
+      .map((merchant: any) => ({
+        id: merchant.id,
+        name: merchant.name,
+        type: merchant.type,
+        total: Math.abs(merchant.transactions.reduce((sum: number, t: any) => sum + t.amount, 0)),
+        count: merchant.transactions.length,
       }))
-      .filter((b: any) => b.total > 0)
+      .filter((m: any) => m.total > 0)
       .sort((a: any, b: any) => b.total - a.total)
       .slice(0, 5)
 
-    // Get recent donations
-    const recentDonations = await prisma.donation.findMany({
+    // Get recent transactions
+    const recentDonations = await prisma.transaction.findMany({
       take: 5,
       orderBy: {
-        date: 'desc',
+        dateOp: 'desc',
       },
       include: {
         category: true,
-        beneficiary: true,
+        merchant: true,
       },
     })
 
     return NextResponse.json({
       total: {
-        amount: totalDonations._sum.amount || 0,
-        count: totalDonations._count,
+        amount: Math.abs(totalExpenses._sum.amount || 0),
+        income: totalIncome._sum.amount || 0,
+        count: totalExpenses._count + totalIncome._count,
       },
       year: {
         year: currentYear,
-        amount: yearDonations._sum.amount || 0,
-        count: yearDonations._count,
+        amount: Math.abs(yearExpenses._sum.amount || 0),
+        income: yearIncome._sum.amount || 0,
+        count: yearExpenses._count + yearIncome._count,
       },
       byCategory: categoryStats,
       byMonth: monthlyStats,
