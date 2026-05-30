@@ -44,15 +44,25 @@ export default function ImportPage() {
         fetch('/api/beneficiaries'),
       ])
 
+      if (!categoriesRes.ok || !beneficiariesRes.ok) {
+        console.error('Error fetching categories:', await categoriesRes.text())
+        console.error('Error fetching beneficiaries:', await beneficiariesRes.text())
+        setCategories([])
+        setBeneficiaries([])
+        return
+      }
+
       const [categoriesData, beneficiariesData] = await Promise.all([
         categoriesRes.json(),
         beneficiariesRes.json(),
       ])
 
-      setCategories(categoriesData)
-      setBeneficiaries(beneficiariesData)
+      setCategories(Array.isArray(categoriesData) ? categoriesData : [])
+      setBeneficiaries(Array.isArray(beneficiariesData) ? beneficiariesData : [])
     } catch (error) {
       console.error('Error fetching data:', error)
+      setCategories([])
+      setBeneficiaries([])
     }
   }
 

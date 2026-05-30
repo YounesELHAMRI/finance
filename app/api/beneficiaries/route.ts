@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { beneficiarySchema } from '@/lib/validations'
 
-// GET /api/beneficiaries - List all beneficiaries
+// GET /api/beneficiaries - List all merchants (renamed from beneficiaries)
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
@@ -14,11 +13,11 @@ export async function GET(request: NextRequest) {
       where.type = type
     }
 
-    const beneficiaries = await prisma.beneficiary.findMany({
+    const merchants = await prisma.merchant.findMany({
       where,
       include: {
         _count: {
-          select: { donations: true },
+          select: { transactions: true },
         },
       },
       orderBy: {
@@ -26,31 +25,33 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    return NextResponse.json(beneficiaries)
+    return NextResponse.json(merchants)
   } catch (error) {
-    console.error('Error fetching beneficiaries:', error)
+    console.error('Error fetching merchants:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch beneficiaries' },
+      { error: 'Failed to fetch merchants' },
       { status: 500 }
     )
   }
 }
 
-// POST /api/beneficiaries - Create a new beneficiary
+// POST /api/beneficiaries - Create a new merchant
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     
-    // Validate the request body
-    const validatedData = beneficiarySchema.parse(body)
-
-    const beneficiary = await prisma.beneficiary.create({
-      data: validatedData,
+    const merchant = await prisma.merchant.create({
+      data: {
+        name: body.name,
+        type: body.type,
+        description: body.description,
+        suggestedName: body.suggestedName,
+      },
     })
 
-    return NextResponse.json(beneficiary, { status: 201 })
+    return NextResponse.json(merchant, { status: 201 })
   } catch (error: any) {
-    console.error('Error creating beneficiary:', error)
+    console.error('Error creating merchant:', error)
     
     if (error.name === 'ZodError') {
       return NextResponse.json(
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: 'Failed to create beneficiary' },
+      { error: 'Failed to create merchant' },
       { status: 500 }
     )
   }
